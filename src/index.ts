@@ -12,6 +12,7 @@ import chalk from 'chalk';
 import dotenv from 'dotenv';
 
 import { runScan } from './commands/scan.js';
+import { runGenerateMatrix } from './commands/generate-matrix.js';
 
 // Load environment variables from .env (e.g. ANTHROPIC_API_KEY)
 dotenv.config();
@@ -62,11 +63,13 @@ program
     'Output path for the generated Markdown matrix',
     './output/matrices/test-matrix.md',
   )
+  .option(
+    '--push-supabase',
+    'Also push the structured matrix to the Supabase `test_matrices` table',
+    false,
+  )
   .action(async (options) => {
-    console.log(chalk.cyan.bold('\n[autoqa generate-matrix]'));
-    console.log(chalk.gray(`  Input:  ${options.input}`));
-    console.log(chalk.gray(`  Output: ${options.output}`));
-    console.log(chalk.yellow('\n  TODO: wire up src/core/matrix-gen.ts (Step 3)\n'));
+    await runGenerateMatrix(options);
   });
 
 /**

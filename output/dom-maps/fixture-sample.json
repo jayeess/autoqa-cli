@@ -1,0 +1,90 @@
+{
+  "url": "https://example.test/login",
+  "finalUrl": "https://example.test/login",
+  "title": "Sign in",
+  "capturedAt": "2026-04-10T00:00:00.000Z",
+  "viewport": { "width": 1280, "height": 800 },
+  "forms": [
+    {
+      "id": "login-form",
+      "testId": "login-form",
+      "ariaLabel": "Sign in",
+      "fields": [
+        {
+          "tag": "input",
+          "kind": "input",
+          "id": "email",
+          "name": "email",
+          "type": "email",
+          "role": "textbox",
+          "ariaLabel": "Email",
+          "placeholder": "you@example.com",
+          "required": true,
+          "suggestedLocator": "page.locator('#email')"
+        },
+        {
+          "tag": "input",
+          "kind": "input",
+          "id": "password",
+          "name": "password",
+          "type": "password",
+          "role": "textbox",
+          "ariaLabel": "Password",
+          "required": true,
+          "suggestedLocator": "page.locator('#password')"
+        },
+        {
+          "tag": "input",
+          "kind": "checkbox",
+          "id": "remember",
+          "name": "remember",
+          "type": "checkbox",
+          "role": "checkbox",
+          "ariaLabel": "Remember me",
+          "suggestedLocator": "page.locator('#remember')"
+        }
+      ],
+      "submit": {
+        "tag": "button",
+        "kind": "button",
+        "id": "signin-btn",
+        "type": "submit",
+        "role": "button",
+        "text": "Sign in",
+        "suggestedLocator": "page.getByRole('button', { name: 'Sign in' })"
+      }
+    }
+  ],
+  "buttons": [
+    {
+      "tag": "button",
+      "kind": "button",
+      "testId": "menu-open",
+      "role": "button",
+      "ariaLabel": "Open menu",
+      "suggestedLocator": "page.getByTestId('menu-open')"
+    }
+  ],
+  "inputs": [
+    {
+      "tag": "input",
+      "kind": "input",
+      "name": "search",
+      "type": "text",
+      "role": "textbox",
+      "placeholder": "Search",
+      "suggestedLocator": "page.getByPlaceholder('Search')"
+    }
+  ],
+  "links": [
+    {
+      "tag": "a",
+      "kind": "link",
+      "role": "link",
+      "text": "Forgot password?",
+      "href": "https://example.test/forgot",
+      "suggestedLocator": "page.getByRole('link', { name: 'Forgot password?' })"
+    }
+  ],
+  "other": []
+}

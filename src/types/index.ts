@@ -76,6 +76,45 @@ export interface DomForm {
   submit?: DomElement;
 }
 
+/** Test case categories emitted by matrix-gen. */
+export type TestCategory = 'Functional' | 'Regression' | 'Negative' | 'Accessibility';
+
+/**
+ * A single row of the generated test matrix.
+ * Each case maps 1:1 to a Markdown table row *and* to a JSON record
+ * that can be pushed to the Supabase `test_matrices.cases` column.
+ */
+export interface TestCase {
+  /** Stable identifier within the matrix (e.g. "TC-001"). */
+  id: string;
+  category: TestCategory;
+  /** Human-readable element description ("Login form", "Submit button"). */
+  element: string;
+  /** What the test should do. */
+  action: string;
+  /** What the test should assert afterwards. */
+  expected: string;
+  /** Optional back-reference to the source element's kind. */
+  elementKind?: ElementKind | 'form';
+  /** Optional Playwright locator for the element under test. */
+  elementLocator?: string;
+  /** Optional grouping (e.g. form name) used for Markdown section headings. */
+  section?: string;
+}
+
+/**
+ * Structured matrix produced by matrix-gen. This is the shape we
+ * render to Markdown *and* push to Supabase.
+ */
+export interface TestMatrix {
+  sourceUrl: string;
+  pageTitle: string;
+  capturedAt: string;
+  generatedAt: string;
+  totalCases: number;
+  cases: TestCase[];
+}
+
 /** The full DOM snapshot produced by `autoqa scan`. */
 export interface DomMap {
   /** The URL originally requested. */

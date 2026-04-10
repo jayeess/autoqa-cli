@@ -14,6 +14,7 @@ import dotenv from 'dotenv';
 import { runScan } from './commands/scan.js';
 import { runGenerateMatrix } from './commands/generate-matrix.js';
 import { runWriteTests } from './commands/write-tests.js';
+import { runTests } from './commands/run-tests.js';
 
 // Load environment variables from .env (e.g. ANTHROPIC_API_KEY)
 dotenv.config();
@@ -99,6 +100,35 @@ program
   )
   .action(async (options) => {
     await runWriteTests(options);
+  });
+
+/**
+ * Command: run
+ * ------------
+ * Executes the generated Playwright spec files, parses the JSON
+ * reporter output, and produces a systematic Markdown bug report
+ * covering every failed / timed-out / interrupted test. Optionally
+ * pushes each failure to the Supabase `bug_reports` table.
+ */
+program
+  .command('run')
+  .description(
+    'Run Playwright tests and produce a Markdown bug report for any failures.',
+  )
+  .option('-s, --spec <path>', 'Optional spec file or glob to pass to Playwright')
+  .option('-c, --config <path>', 'Path to an explicit playwright.config.ts file')
+  .option(
+    '-o, --output <path>',
+    'Output path for the generated bug report markdown',
+    './output/bug-reports/bug-report.md',
+  )
+  .option(
+    '--push-supabase',
+    'Also push every failing report to the Supabase `bug_reports` table',
+    false,
+  )
+  .action(async (options) => {
+    await runTests(options);
   });
 
 // Commander's exitOverride lets us format real errors nicely while

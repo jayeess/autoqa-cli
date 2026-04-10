@@ -5,7 +5,11 @@
  * `--push-supabase` never need the env vars and never pay the cost
  * of instantiating a client.
  *
- * Configure by setting `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.env`.
+ * This CLI runs as a trusted backend utility (developer machine or CI),
+ * so it uses the SERVICE ROLE key, which bypasses Row-Level Security.
+ * NEVER ship this key to a browser.
+ *
+ * Configure by setting `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -22,11 +26,11 @@ export function getSupabaseClient(): SupabaseClient {
   if (cached) return cached;
 
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
     throw new Error(
-      'Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file. ' +
+      'Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file. ' +
         'See .env.example for details.',
     );
   }
@@ -44,7 +48,7 @@ export function getSupabaseClient(): SupabaseClient {
 
 /** True when both Supabase env vars are present (doesn't instantiate). */
 export function isSupabaseConfigured(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 /** Test-only: reset the cached client so unit tests start clean. */

@@ -55,6 +55,18 @@ export interface DomElement {
   required?: boolean;
   /** Whether the element is disabled. */
   disabled?: boolean;
+  /** `min` attribute for number/date/range inputs (kept as string to preserve original form). */
+  min?: string;
+  /** `max` attribute for number/date/range inputs. */
+  max?: string;
+  /** `step` attribute for number/date/range inputs. */
+  step?: string;
+  /** `minlength` for text/textarea. */
+  minLength?: number;
+  /** `maxlength` for text/textarea. */
+  maxLength?: number;
+  /** `pattern` regex for text inputs. */
+  pattern?: string;
   /** A Playwright locator expression the LLM can paste straight into tests. */
   suggestedLocator: string;
 }

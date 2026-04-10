@@ -245,10 +245,11 @@ function casesForForm(form: DomForm, section: string, idGen: IdGen): TestCase[] 
     });
   });
 
-  // Type-specific functional cases (email, url, tel, number, password)
+  // Type-specific functional + boundary cases (email, url, tel, number, date, password, etc.)
   form.fields.forEach((field) => {
-    const typeCase = casesForTypedInput(field, section);
-    if (typeCase) cases.push({ ...typeCase, id: idGen() });
+    for (const c of casesForTypedInput(field, section)) {
+      cases.push({ ...c, id: idGen() });
+    }
   });
 
   // Regression — form is rendered
@@ -279,67 +280,300 @@ function casesForForm(form: DomForm, section: string, idGen: IdGen): TestCase[] 
   return cases;
 }
 
-/** Returns an un-ID'd TestCase (caller assigns id). Returns null when no type-specific case applies. */
+/**
+ * Returns zero or more un-ID'd test cases for type-specific validation
+ * (format errors, boundary values, masking). The caller assigns ids.
+ */
 function casesForTypedInput(
   field: DomElement,
   section: string,
-): Omit<TestCase, 'id'> | null {
-  if (field.kind !== 'input') return null;
+): Array<Omit<TestCase, 'id'>> {
+  if (field.kind !== 'input') return [];
+
+  const label = describeElement(field);
+  const locator = field.suggestedLocator;
+  const kind = field.kind;
+  const ctx = { element: label, elementKind: kind, elementLocator: locator, section };
 
   switch (field.type) {
     case 'email':
-      return {
-        category: 'Negative',
-        element: describeElement(field),
-        action: 'Enter a malformed email (e.g. "not-an-email") and blur the field.',
-        expected: 'The field reports an invalid email format error.',
-        elementKind: field.kind,
-        elementLocator: field.suggestedLocator,
-        section,
-      };
+      return [
+        {
+          ...ctx,
+          category: 'Negative',
+          action: 'Enter a malformed email (e.g. "not-an-email") and blur the field.',
+          expected: 'The field reports an invalid email format error.',
+        },
+      ];
+
     case 'url':
-      return {
-        category: 'Negative',
-        element: describeElement(field),
-        action: 'Enter a non-URL string (e.g. "foo") and blur the field.',
-        expected: 'The field reports an invalid URL format error.',
-        elementKind: field.kind,
-        elementLocator: field.suggestedLocator,
-        section,
-      };
+      return [
+        {
+          ...ctx,
+          category: 'Negative',
+          action: 'Enter a non-URL string (e.g. "foo") and blur the field.',
+          expected: 'The field reports an invalid URL format error.',
+        },
+      ];
+
     case 'number':
-      return {
-        category: 'Negative',
-        element: describeElement(field),
-        action: 'Enter non-numeric characters.',
-        expected: 'The field rejects the input or reports a numeric validation error.',
-        elementKind: field.kind,
-        elementLocator: field.suggestedLocator,
-        section,
-      };
+    case 'range':
+      return casesForNumericInput(field, ctx);
+
+    case 'date':
+    case 'datetime-local':
+    case 'month':
+    case 'week':
+    case 'time':
+      return casesForDateInput(field, ctx);
+
     case 'tel':
-      return {
-        category: 'Functional',
-        element: describeElement(field),
-        action: 'Enter a well-formed phone number.',
-        expected: 'The value is accepted without validation errors.',
-        elementKind: field.kind,
-        elementLocator: field.suggestedLocator,
-        section,
-      };
+      return [
+        {
+          ...ctx,
+          category: 'Functional',
+          action: 'Enter a well-formed phone number.',
+          expected: 'The value is accepted without validation errors.',
+        },
+      ];
+
     case 'password':
-      return {
-        category: 'Functional',
-        element: describeElement(field),
-        action: 'Type a value and verify it is masked from view.',
-        expected: 'Entered characters are obscured (bullets/asterisks).',
-        elementKind: field.kind,
-        elementLocator: field.suggestedLocator,
-        section,
-      };
+      return [
+        {
+          ...ctx,
+          category: 'Functional',
+          action: 'Type a value and verify it is masked from view.',
+          expected: 'Entered characters are obscured (bullets/asterisks).',
+        },
+      ];
+
+    case 'text':
+    case 'search':
+      return casesForTextLengthInput(field, ctx);
+
     default:
-      return null;
+      return [];
   }
+}
+
+/** Shared context shape for a typed-input case factory. */
+type TypedCaseCtx = {
+  element: string;
+  elementKind: DomElement['kind'];
+  elementLocator: string;
+  section: string;
+};
+
+/**
+ * Boundary-value coverage for number/range inputs.
+ * Uses whatever min/max/step were captured; otherwise emits generic boundary cases.
+ */
+function casesForNumericInput(
+  field: DomElement,
+  ctx: TypedCaseCtx,
+): Array<Omit<TestCase, 'id'>> {
+  const cases: Array<Omit<TestCase, 'id'>> = [
+    {
+      ...ctx,
+      category: 'Negative',
+      action: 'Enter non-numeric characters.',
+      expected: 'The field rejects the input or reports a numeric validation error.',
+    },
+  ];
+
+  if (field.min !== undefined) {
+    cases.push({
+      ...ctx,
+      category: 'Functional',
+      action: `Enter the minimum allowed value (${field.min}).`,
+      expected: 'Value is accepted without validation errors.',
+    });
+    cases.push({
+      ...ctx,
+      category: 'Negative',
+      action: `Enter a value one unit below min (${decrementBound(field.min, field.step)}).`,
+      expected: 'Field reports a range-underflow validation error.',
+    });
+  }
+
+  if (field.max !== undefined) {
+    cases.push({
+      ...ctx,
+      category: 'Functional',
+      action: `Enter the maximum allowed value (${field.max}).`,
+      expected: 'Value is accepted without validation errors.',
+    });
+    cases.push({
+      ...ctx,
+      category: 'Negative',
+      action: `Enter a value one unit above max (${incrementBound(field.max, field.step)}).`,
+      expected: 'Field reports a range-overflow validation error.',
+    });
+  }
+
+  // If neither min nor max was declared, still provide generic edge coverage.
+  if (field.min === undefined && field.max === undefined) {
+    cases.push(
+      {
+        ...ctx,
+        category: 'Functional',
+        action: 'Enter zero (0).',
+        expected: 'Value is accepted and stored as 0.',
+      },
+      {
+        ...ctx,
+        category: 'Functional',
+        action: 'Enter a negative number (e.g. -1).',
+        expected:
+          'If the field allows negatives, value is accepted; otherwise a validation error is reported.',
+      },
+      {
+        ...ctx,
+        category: 'Functional',
+        action: 'Enter a very large number (e.g. 999999999).',
+        expected:
+          'Value is accepted or rejected consistently with the field\'s intended range.',
+      },
+    );
+  }
+
+  if (field.step !== undefined && field.step !== 'any') {
+    cases.push({
+      ...ctx,
+      category: 'Negative',
+      action: `Enter a value that does not align with step=${field.step} (e.g. an off-step fractional value).`,
+      expected: 'Field reports a step-mismatch validation error.',
+    });
+  }
+
+  return cases;
+}
+
+/**
+ * Boundary-value coverage for date/datetime/month/week/time inputs.
+ */
+function casesForDateInput(
+  field: DomElement,
+  ctx: TypedCaseCtx,
+): Array<Omit<TestCase, 'id'>> {
+  const cases: Array<Omit<TestCase, 'id'>> = [
+    {
+      ...ctx,
+      category: 'Negative',
+      action: 'Enter a malformed date string (e.g. "2023-13-45").',
+      expected: 'Field rejects the value or reports an invalid date error.',
+    },
+  ];
+
+  if (field.min !== undefined) {
+    cases.push(
+      {
+        ...ctx,
+        category: 'Functional',
+        action: `Enter the earliest allowed date (${field.min}).`,
+        expected: 'Date is accepted without validation errors.',
+      },
+      {
+        ...ctx,
+        category: 'Negative',
+        action: `Enter a date before min (${field.min}).`,
+        expected: 'Field reports a date range-underflow error.',
+      },
+    );
+  }
+
+  if (field.max !== undefined) {
+    cases.push(
+      {
+        ...ctx,
+        category: 'Functional',
+        action: `Enter the latest allowed date (${field.max}).`,
+        expected: 'Date is accepted without validation errors.',
+      },
+      {
+        ...ctx,
+        category: 'Negative',
+        action: `Enter a date after max (${field.max}).`,
+        expected: 'Field reports a date range-overflow error.',
+      },
+    );
+  }
+
+  return cases;
+}
+
+/**
+ * Length-boundary coverage for text/search inputs with minlength / maxlength.
+ */
+function casesForTextLengthInput(
+  field: DomElement,
+  ctx: TypedCaseCtx,
+): Array<Omit<TestCase, 'id'>> {
+  const cases: Array<Omit<TestCase, 'id'>> = [];
+
+  if (field.minLength !== undefined && field.minLength > 0) {
+    cases.push(
+      {
+        ...ctx,
+        category: 'Functional',
+        action: `Enter exactly minlength (${field.minLength}) characters.`,
+        expected: 'Value is accepted.',
+      },
+      {
+        ...ctx,
+        category: 'Negative',
+        action: `Enter one character below minlength (${field.minLength - 1}).`,
+        expected: 'Field reports a too-short validation error.',
+      },
+    );
+  }
+
+  if (field.maxLength !== undefined && field.maxLength > 0) {
+    cases.push(
+      {
+        ...ctx,
+        category: 'Functional',
+        action: `Enter exactly maxlength (${field.maxLength}) characters.`,
+        expected: 'Value is accepted.',
+      },
+      {
+        ...ctx,
+        category: 'Negative',
+        action: `Attempt to enter one character above maxlength (${field.maxLength + 1}).`,
+        expected: 'Input is truncated to maxlength or a too-long error is reported.',
+      },
+    );
+  }
+
+  if (field.pattern !== undefined) {
+    cases.push({
+      ...ctx,
+      category: 'Negative',
+      action: `Enter a value that does not match the pattern /${field.pattern}/.`,
+      expected: 'Field reports a pattern-mismatch validation error.',
+    });
+  }
+
+  return cases;
+}
+
+/** Best-effort arithmetic on a bound value, preserving formatting for dates. */
+function decrementBound(value: string, step?: string): string {
+  const stepNum = step && step !== 'any' ? Number.parseFloat(step) : 1;
+  const n = Number.parseFloat(value);
+  if (Number.isFinite(n) && Number.isFinite(stepNum)) {
+    return String(n - stepNum);
+  }
+  return `< ${value}`;
+}
+
+function incrementBound(value: string, step?: string): string {
+  const stepNum = step && step !== 'any' ? Number.parseFloat(step) : 1;
+  const n = Number.parseFloat(value);
+  if (Number.isFinite(n) && Number.isFinite(stepNum)) {
+    return String(n + stepNum);
+  }
+  return `> ${value}`;
 }
 
 function casesForButton(btn: DomElement, section: string, idGen: IdGen): TestCase[] {
@@ -431,8 +665,9 @@ function casesForLooseInput(el: DomElement, section: string, idGen: IdGen): Test
   }
 
   if (el.kind === 'input') {
-    const typeCase = casesForTypedInput(el, section);
-    if (typeCase) cases.push({ ...typeCase, id: idGen() });
+    for (const c of casesForTypedInput(el, section)) {
+      cases.push({ ...c, id: idGen() });
+    }
   }
 
   return cases;

@@ -30,7 +30,7 @@ export async function runGenerateMatrix(
   // Fail fast on misconfiguration before doing any work.
   if (options.pushSupabase && !isSupabaseConfigured()) {
     logger.error(
-      '--push-supabase was provided but SUPABASE_URL / SUPABASE_ANON_KEY are not set. ' +
+      '--push-supabase was provided but SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not set. ' +
         'Add them to .env (see .env.example).',
     );
     process.exitCode = 1;

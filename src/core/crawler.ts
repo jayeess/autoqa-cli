@@ -257,11 +257,32 @@ function extractDomInPage(): {
       if (el.value && el.type !== 'password') out.value = el.value;
       if (el.required) out.required = true;
       if (el.disabled) out.disabled = true;
+      // Boundary-relevant attributes for numeric, date, range, and text inputs.
+      const minAttr = el.getAttribute('min');
+      if (minAttr !== null) out.min = minAttr;
+      const maxAttr = el.getAttribute('max');
+      if (maxAttr !== null) out.max = maxAttr;
+      const stepAttr = el.getAttribute('step');
+      if (stepAttr !== null) out.step = stepAttr;
+      if (el.minLength >= 0 && el.getAttribute('minlength') !== null) {
+        out.minLength = el.minLength;
+      }
+      if (el.maxLength >= 0 && el.getAttribute('maxlength') !== null) {
+        out.maxLength = el.maxLength;
+      }
+      const patternAttr = el.getAttribute('pattern');
+      if (patternAttr) out.pattern = patternAttr;
     } else if (el instanceof HTMLTextAreaElement) {
       if (el.placeholder) out.placeholder = el.placeholder;
       if (el.value) out.value = el.value;
       if (el.required) out.required = true;
       if (el.disabled) out.disabled = true;
+      if (el.minLength >= 0 && el.getAttribute('minlength') !== null) {
+        out.minLength = el.minLength;
+      }
+      if (el.maxLength >= 0 && el.getAttribute('maxlength') !== null) {
+        out.maxLength = el.maxLength;
+      }
     } else if (el instanceof HTMLSelectElement) {
       if (el.value) out.value = el.value;
       if (el.required) out.required = true;

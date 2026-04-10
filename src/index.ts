@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 
 import { runScan } from './commands/scan.js';
 import { runGenerateMatrix } from './commands/generate-matrix.js';
+import { runWriteTests } from './commands/write-tests.js';
 
 // Load environment variables from .env (e.g. ANTHROPIC_API_KEY)
 dotenv.config();
@@ -92,21 +93,12 @@ program
     'Claude model ID to use for test generation',
     'claude-opus-4-6',
   )
+  .option(
+    '--matrix <path>',
+    'Optional path to a pre-built matrix JSON (if omitted, one is generated from the DOM map)',
+  )
   .action(async (options) => {
-    console.log(chalk.cyan.bold('\n[autoqa write-tests]'));
-    console.log(chalk.gray(`  Input:  ${options.input}`));
-    console.log(chalk.gray(`  Output: ${options.output}`));
-    console.log(chalk.gray(`  Model:  ${options.model}`));
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.log(
-        chalk.red('\n  ERROR: ANTHROPIC_API_KEY is not set. Add it to your .env file.\n'),
-      );
-      process.exitCode = 1;
-      return;
-    }
-
-    console.log(chalk.yellow('\n  TODO: wire up src/core/test-writer.ts (Step 4)\n'));
+    await runWriteTests(options);
   });
 
 // Commander's exitOverride lets us format real errors nicely while

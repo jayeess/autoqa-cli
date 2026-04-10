@@ -7,9 +7,11 @@
  * and auto-writes Playwright E2E tests using the Claude API.
  */
 
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
+
+import { runScan } from './commands/scan.js';
 
 // Load environment variables from .env (e.g. ANTHROPIC_API_KEY)
 dotenv.config();
@@ -31,7 +33,7 @@ program
  */
 program
   .command('scan')
-  .description("Crawl a URL and extract its interactive DOM elements into a JSON map.")
+  .description('Crawl a URL and extract its interactive DOM elements into a JSON map.')
   .requiredOption('-u, --url <url>', 'Target URL to scan')
   .option(
     '-o, --output <path>',
@@ -39,13 +41,10 @@ program
     './output/dom-maps/dom-map.json',
   )
   .option('--headless', 'Run the browser in headless mode', true)
+  .option('--no-headless', 'Run the browser with a visible UI (overrides --headless)')
   .option('--timeout <ms>', 'Navigation timeout in milliseconds', '30000')
   .action(async (options) => {
-    console.log(chalk.cyan.bold('\n[autoqa scan]'));
-    console.log(chalk.gray(`  URL:      ${options.url}`));
-    console.log(chalk.gray(`  Output:   ${options.output}`));
-    console.log(chalk.gray(`  Headless: ${options.headless}`));
-    console.log(chalk.yellow('\n  TODO: wire up src/core/crawler.ts (Step 2)\n'));
+    await runScan(options);
   });
 
 /**
@@ -107,18 +106,23 @@ program
     console.log(chalk.yellow('\n  TODO: wire up src/core/test-writer.ts (Step 4)\n'));
   });
 
-// Global error handler — keeps CLI output clean on unhandled failures.
+// Commander's exitOverride lets us format real errors nicely while
+// still letting built-in help/version output exit cleanly.
 program.exitOverride();
 
-try {
-  program.parse(process.argv);
-} catch (err) {
+// Show help when no subcommand was provided.
+if (process.argv.slice(2).length === 0) {
+  program.outputHelp();
+  process.exit(0);
+}
+
+program.parseAsync(process.argv).catch((err: unknown) => {
+  if (err instanceof CommanderError) {
+    // Help/version/validation output — commander has already printed
+    // its own message, so just honor its suggested exit code.
+    process.exit(err.exitCode);
+  }
   const message = err instanceof Error ? err.message : String(err);
   console.error(chalk.red(`\nautoqa: ${message}\n`));
   process.exit(1);
-}
-
-// If no subcommand was provided, show help.
-if (process.argv.slice(2).length === 0) {
-  program.help();
-}
+});

@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------------------
+# Render Blueprint for AutoQA — one-click deploy of the dashboard.
+#
+# Deploy path:
+#   1. Push this branch to GitHub.
+#   2. Visit https://dashboard.render.com/blueprints → New Blueprint Instance.
+#   3. Connect the `jayeess/autoqa-cli` repo and select the branch.
+#   4. Render reads this file, provisions the service, and prompts for the
+#      two NEXT_PUBLIC_SUPABASE_* env vars (marked `sync: false`).
+#   5. Paste the Supabase URL + anon key, click Apply, and the dashboard
+#      goes live at https://autoqa-dashboard.onrender.com (or the hostname
+#      Render assigns).
+#
+# Docs: https://render.com/docs/blueprint-spec
+# ---------------------------------------------------------------------------
+
+services:
+  - type: web
+    name: autoqa-dashboard
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: dashboard
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Supabase public credentials — set these in the Render dashboard
+      # after the service is created. They are NOT secrets in the
+      # crypto-sensitive sense (the anon key is safe to bundle into the
+      # client-side build), but `sync: false` makes Render prompt for
+      # them explicitly instead of trying to auto-fill.
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
